@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نظام نقاط بيع خفيف - Fast POS</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: Tahoma, sans-serif; }
+        body { display: flex; height: 100vh; background: #f4f7f6; color: #333; }
+        
+        /* قسم المنتجات */
+        .products-section { flex: 2; padding: 20px; overflow-y: auto; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 15px; }
+        .card { background: white; padding: 15px; border-radius: 8px; text-align: center; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.1); transition: 0.2s; }
+        .card:hover { background: #eef2f3; transform: translateY(-2px); }
+        .card h4 { font-size: 16px; margin-bottom: 8px; }
+        .card p { color: #27ae60; font-weight: bold; }
+
+        /* قسم الفاتورة */
+        .cart-section { flex: 1; background: white; border-right: 1px solid #ddd; display: flex; flex-direction: column; padding: 20px; box-shadow: -2px 0 5px rgba(0,0,0,0.05); }
+        .cart-items { flex: 1; overflow-y: auto; margin-bottom: 15px; border-bottom: 1px solid #eee; }
+        .cart-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px dashed #eee; font-size: 14px; }
+        .cart-item button { background: #e74c3c; color: white; border: none; padding: 2px 6px; border-radius: 4px; cursor: pointer; }
+        
+        /* ملخص الحساب */
+        .totals { font-size: 18px; font-weight: bold; margin-bottom: 15px; text-align: left; }
+        .btn-checkout { background: #27ae60; color: white; border: none; padding: 12px; width: 100%; font-size: 16px; border-radius: 6px; cursor: pointer; font-weight: bold; }
+        .btn-checkout:hover { background: #219653; }
+    </style>
+</head>
+<body>
+
+    <!-- قسم عرض المنتجات السريعة -->
+    <div class="products-section">
+        <h2 style="margin-bottom: 15px;">المنتجات السريعة</h2>
+        <div class="grid" id="productGrid">
+            <!-- يتم تعبئتها عبر الجافاسكريبت -->
+        </div>
+    </div>
+
+    <!-- قسم سلة المشتريات والفاتورة -->
+    <div class="cart-section">
+        <h2>فاتورة البيع</h2>
+        <div class="cart-items" id="cartItems">
+            <p style="color: #888; text-align: center; margin-top: 20px;">السلة فارغة</p>
+        </div>
+        <div class="totals">
+            الإجمالي: <span id="totalAmount">0.00</span> د.أ
+        </div>
+        <button class="btn-checkout" onclick="checkout()">إتمام الدفع</button>
+    </div>
+
+    <script>
+        // قاعدة بيانات وهمية خفيفة للمنتجات
+        const products = [
+            { id: 1, name: "قهوة إبريق", price: 1.5 },
+            { id: 2, name: "شاي متماسك", price: 0.5 },
+            { id: 3, name: "كرواسون", price: 1.2 },
+            { id: 4, name: "ماء معدني", price: 0.3 },
+            { id: 5, name: "عصير طازج", price: 2.0 },
+            { id: 6, name: "ساندويتش جبن", price: 2.5 }
+        ];
+
+        let cart = [];
+
+        // عرض المنتجات على الشاشة
+        function renderProducts() {
+            const grid = document.getElementById('productGrid');
+            grid.innerHTML = products.map(p => `
+                <div class="card" onclick="addToCart(${p.id})">
+                    <h4>${p.name}</h4>
+                    <p>${p.price} د.أ</p>
+                </div>
+            `).join('');
+        }
+
+        // إضافة منتج للسلة
+        function addToCart(id) {
+            const product = products.find(p => p.id === id);
+            const existing = cart.find(item => item.id === id);
+            
+            if (existing) {
+                existing.qty++;
+            } else {
+                cart.push({ ...product, qty: 1 });
+            }
+            renderCart();
+        }
+
+        // حذف منتج من السلة
+        function removeFromCart(id) {
+            cart = cart.filter(item => item.id !== id);
+            renderCart();
+        }
+
+        // تحديث عرض السلة والإجمالي
+        function renderCart() {
+            const container = document.getElementById('cartItems');
+            const totalElement = document.getElementById('totalAmount');
+            
+            if (cart.length === 0) {
+                container.innerHTML = '<p style="color: #888; text-align: center; margin-top: 20px;">السلة فارغة</p>';
+                totalElement.innerText = '0.00';
+                return;
+            }
+
+            let total = 0;
+            container.innerHTML = cart.map(item => {
+                total += item.price * item.qty;
+                return `
+                    <div class="cart-item">
+                        <span>${item.name} (${item.qty})</span>
+                        <span>${(item.price * item.qty).toFixed(2)} د.أ</span>
+                        <button onclick="removeFromCart(${item.id})">حذف</button>
+                    </div>
+                `;
+            }).join('');
+
+            totalElement.innerText = total.toFixed(2);
+        }
+
+        // عملية الدفع الوهمية
+        function checkout() {
+            if (cart.length === 0) {
+                alert('السلة فارغة بالفعل!');
+                return;
+            }
+            alert('تم إتمام الطلب بنجاح! شكراً لك.');
+            cart = [];
+            renderCart();
+        }
+
+        // تشغيل العرض عند تحميل الصفحة
+        renderProducts();
+    </script>
+</body>
+</html>
