@@ -3,18 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>نظام نقاط بيع خفيف - Fast POS</title>
+    <title>نظام نقاط بيع سريع - مع دعم الباركود</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: Tahoma, sans-serif; }
         body { display: flex; height: 100vh; background: #f4f7f6; color: #333; }
         
-        /* قسم المنتجات */
-        .products-section { flex: 2; padding: 20px; overflow-y: auto; }
+        /* قسم المنتجات والبحث بالباركود */
+        .products-section { flex: 2; padding: 20px; display: flex; flex-direction: column; overflow: hidden; }
+        .barcode-input-container { margin-bottom: 15px; }
+        .barcode-input-container input { width: 100%; padding: 12px; font-size: 16px; border: 2px solid #3498db; border-radius: 6px; outline: none; }
+        
+        .grid-container { flex: 1; overflow-y: auto; }
         .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 15px; }
         .card { background: white; padding: 15px; border-radius: 8px; text-align: center; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.1); transition: 0.2s; }
         .card:hover { background: #eef2f3; transform: translateY(-2px); }
-        .card h4 { font-size: 16px; margin-bottom: 8px; }
-        .card p { color: #27ae60; font-weight: bold; }
+        .card h4 { font-size: 15px; margin-bottom: 5px; }
+        .card p { color: #27ae60; font-weight: bold; font-size: 14px; }
+        .card span { font-size: 11px; color: #888; display: block; margin-top: 5px; }
 
         /* قسم الفاتورة */
         .cart-section { flex: 1; background: white; border-right: 1px solid #ddd; display: flex; flex-direction: column; padding: 20px; box-shadow: -2px 0 5px rgba(0,0,0,0.05); }
@@ -22,19 +27,29 @@
         .cart-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px dashed #eee; font-size: 14px; }
         .cart-item button { background: #e74c3c; color: white; border: none; padding: 2px 6px; border-radius: 4px; cursor: pointer; }
         
-        /* ملخص الحساب */
+        /* ملخص الحساب والأزرار */
         .totals { font-size: 18px; font-weight: bold; margin-bottom: 15px; text-align: left; }
-        .btn-checkout { background: #27ae60; color: white; border: none; padding: 12px; width: 100%; font-size: 16px; border-radius: 6px; cursor: pointer; font-weight: bold; }
+        .btn-checkout { background: #27ae60; color: white; border: none; padding: 12px; width: 100%; font-size: 16px; border-radius: 6px; cursor: pointer; font-weight: bold; margin-bottom: 8px; }
         .btn-checkout:hover { background: #219653; }
+        .btn-clear { background: #e67e22; color: white; border: none; padding: 8px; width: 100%; font-size: 14px; border-radius: 6px; cursor: pointer; }
+        .btn-clear:hover { background: #d35400; }
     </style>
 </head>
 <body>
 
-    <!-- قسم عرض المنتجات السريعة -->
+    <!-- قسم المنتجات والباركود -->
     <div class="products-section">
-        <h2 style="margin-bottom: 15px;">المنتجات السريعة</h2>
-        <div class="grid" id="productGrid">
-            <!-- يتم تعبئتها عبر الجافاسكريبت -->
+        <h2 style="margin-bottom: 10px;">نظام نقاط البيع السريع</h2>
+        
+        <!-- حقل قراءة الباركود (يستقبل الإدخال من الماسح الضوئي تلقائياً) -->
+        <div class="barcode-input-container">
+            <input type="text5" id="barcodeInput" placeholder="امسح الباركود هنا أو اكتب الكود واضغط Enter..." autofocus>
+        </div>
+
+        <div class="grid-container">
+            <div class="grid" id="productGrid">
+                <!-- يتم تعبئتها عبر الجافاسكريبت -->
+            </div>
         </div>
     </div>
 
@@ -48,52 +63,93 @@
             الإجمالي: <span id="totalAmount">0.00</span> د.أ
         </div>
         <button class="btn-checkout" onclick="checkout()">إتمام الدفع</button>
+        <button class="btn-clear" onclick="clearCart()">إفراغ السلة</button>
     </div>
 
     <script>
-        // قاعدة بيانات وهمية خفيفة للمنتجات
+        // قاعدة بيانات المنتجات مع أرقام الباركود الخاصة بكل منتج
         const products = [
-            { id: 1, name: "قهوة إبريق", price: 1.5 },
-            { id: 2, name: "شاي متماسك", price: 0.5 },
-            { id: 3, name: "كرواسون", price: 1.2 },
-            { id: 4, name: "ماء معدني", price: 0.3 },
-            { id: 5, name: "عصير طازج", price: 2.0 },
-            { id: 6, name: "ساندويتش جبن", price: 2.5 }
+            { id: 1, barcode: "1001", name: "قهوة إبريق", price: 1.5 },
+            { id: 2, barcode: "1002", name: "شاي متماسك", price: 0.5 },
+            { id: 3, barcode: "1003", name: "كرواسون", price: 1.2 },
+            { id: 4, barcode: "1004", name: "ماء معدني", price: 0.3 },
+            { id: 5, barcode: "1005", name: "عصير طازج", price: 2.0 },
+            { id: 6, barcode: "1006", name: "ساندويتش جبن", price: 2.5 }
         ];
 
         let cart = [];
 
-        // عرض المنتجات على الشاشة
+        // عرض المنتجات كأزرار سريعة
         function renderProducts() {
             const grid = document.getElementById('productGrid');
             grid.innerHTML = products.map(p => `
-                <div class="card" onclick="addToCart(${p.id})">
+                <div class="card" onclick="addToCartById(${p.id})">
                     <h4>${p.name}</h4>
                     <p>${p.price} د.أ</p>
+                    <span>${p.barcode}</span>
                 </div>
             `).join('');
         }
 
-        // إضافة منتج للسلة
-        function addToCart(id) {
+        // إضافة منتج للسلة بواسطة الـ ID (عند النقر)
+        function addToCartById(id) {
             const product = products.find(p => p.id === id);
-            const existing = cart.find(item => item.id === id);
-            
+            addProductToCart(product);
+        }
+
+        // إضافة المنتج الفعلي للسلة وزيادة الكمية إذا موجود
+        function addProductToCart(product) {
+            const existing = cart.find(item => item.id === product.id);
             if (existing) {
                 existing.qty++;
             } else {
                 cart.push({ ...product, qty: 1 });
             }
             renderCart();
+            focusBarcode();
         }
 
-        // حذف منتج من السلة
+        // التعامل مع قارئ الباركود عند الضغط على Enter
+        const barcodeInput = document.getElementById('barcodeInput');
+        barcodeInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                const code = barcodeInput.value.trim();
+                const product = products.find(p => p.barcode === code);
+                
+                if (product) {
+                    addProductToCart(product);
+                    barcodeInput.value = ''; // تفريغ الحقل لقراءة باركود جديد
+                } else {
+                    alert('المنتج غير موجود بهذا الباركود: ' + code);
+                    barcodeInput.value = '';
+                }
+            }
+        });
+
+        // الحفاظ على التركيز (Focus) في حقل الباركود دائماً لسرعة العمل
+        function focusBarcode() {
+            barcodeInput.focus();
+        }
+        window.onload = function() {
+            renderProducts();
+            focusBarcode();
+        };
+
+        // حذف منتج مفرد من السلة
         function removeFromCart(id) {
             cart = cart.filter(item => item.id !== id);
             renderCart();
+            focusBarcode();
         }
 
-        // تحديث عرض السلة والإجمالي
+        // إفراغ السلة بالكامل
+        function clearCart() {
+            cart = [];
+            renderCart();
+            focusBarcode();
+        }
+
+        // تحديث عرض السلة والحسابات
         function renderCart() {
             const container = document.getElementById('cartItems');
             const totalElement = document.getElementById('totalAmount');
@@ -119,7 +175,7 @@
             totalElement.innerText = total.toFixed(2);
         }
 
-        // عملية الدفع الوهمية
+        // عملية الدفع
         function checkout() {
             if (cart.length === 0) {
                 alert('السلة فارغة بالفعل!');
@@ -128,10 +184,8 @@
             alert('تم إتمام الطلب بنجاح! شكراً لك.');
             cart = [];
             renderCart();
+            focusBarcode();
         }
-
-        // تشغيل العرض عند تحميل الصفحة
-        renderProducts();
     </script>
 </body>
 </html>
