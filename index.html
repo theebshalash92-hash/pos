@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>نظام نقاط بيع سوبرماركت - مرتبط بجوجل شيت</title>
-    <!-- استدعاء مكتبة PapaParse لقراءة ملفات CSV من جوجل شيت -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: Tahoma, sans-serif; }
@@ -12,13 +11,14 @@
         
         /* قسم المنتجات والبحث */
         .products-section { flex: 2; padding: 20px; display: flex; flex-direction: column; overflow: hidden; }
+        .config-bar { background: #fff; padding: 10px; border-radius: 6px; margin-bottom: 10px; border: 1px solid #ddd; display: flex; gap: 8px; }
+        .config-bar input { flex: 1; padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; }
+        .config-bar button { background: #3498db; color: white; border: none; padding: 0 12px; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        
         .top-bar { display: flex; gap: 10px; margin-bottom: 15px; }
         .barcode-input-container { flex: 1; }
         .barcode-input-container input { width: 100%; padding: 12px; font-size: 16px; border: 2px solid #27ae60; border-radius: 6px; outline: none; }
         
-        .btn-reload { background: #3498db; color: white; border: none; padding: 0 15px; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: bold; }
-        .btn-reload:hover { background: #2980b9; }
-
         .loading-msg { text-align: center; color: #e67e22; font-weight: bold; margin: 20px 0; }
 
         .grid-container { flex: 1; overflow-y: auto; }
@@ -37,16 +37,12 @@
         .cart-item-info { flex: 2; }
         .cart-item-controls { display: flex; align-items: center; gap: 5px; }
         .cart-item-controls button { background: #bdc3c7; color: #333; border: none; width: 22px; height: 22px; border-radius: 4px; cursor: pointer; font-weight: bold; }
-        .cart-item-controls button:hover { background: #95a5a6; color: white; }
         .btn-delete { background: #e74c3c !important; color: white !important; }
-        .btn-delete:hover { background: #c0392b !important; }
         
         /* ملخص الحساب */
         .totals { font-size: 20px; font-weight: bold; margin-bottom: 15px; text-align: left; color: #2c3e50; background: #f8f9fa; padding: 10px; border-radius: 6px; }
         .btn-checkout { background: #27ae60; color: white; border: none; padding: 12px; width: 100%; font-size: 16px; border-radius: 6px; cursor: pointer; font-weight: bold; margin-bottom: 8px; }
-        .btn-checkout:hover { background: #219653; }
         .btn-clear { background: #e67e22; color: white; border: none; padding: 8px; width: 100%; font-size: 13px; border-radius: 6px; cursor: pointer; }
-        .btn-clear:hover { background: #d35400; }
     </style>
 </head>
 <body>
@@ -55,18 +51,23 @@
     <div class="products-section">
         <h2 style="margin-bottom: 10px; color: #2c3e50;">🛒 نقاط بيع السوبرماركت</h2>
         
+        <!-- شريط وضع رابط الشيت (لحل مشكلة عدم التعديل) -->
+        <div class="config-bar">
+            <input type="text" id="sheetUrlInput" value="https://docs.google.com/spreadsheets/d/e/2PACX-1vRdqgqC3ThQaqVmaShd-47oZ6jEUS1Pf-4lihZbJJh2HijUjkbUMQtxeF7FU8IlpwHG7mst05Marh58/pub?output=csv">
+            <button onclick="loadProductsFromSheet()">تحميل البيانات</button>
+        </div>
+
         <div class="top-bar">
             <div class="barcode-input-container">
                 <input type="text" id="barcodeInput" placeholder="امسح الباركود بالماسح الضوئي هنا..." autofocus>
             </div>
-            <button class="btn-reload" onclick="loadProductsFromSheet()">تحديث المنتجات</button>
         </div>
 
         <div id="loadingMsg" class="loading-msg">جاري تحميل المنتجات من جوجل شيت...</div>
 
         <div class="grid-container">
             <div class="grid" id="productGrid">
-                <!-- يتم تعبئتها ديناميكياً من الجوجل شيت -->
+                <!-- المنتجات -->
             </div>
         </div>
     </div>
@@ -85,19 +86,26 @@
     </div>
 
     <script>
-        // رابط جوجل شيت الخاص بك المدمج مباشرة
-        const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRdqgqC3ThQaqVmaShd-47oZ6jEUS1Pf-4lihZbJJh2HijUjkbUMQtxeF7FU8IlpwHG7mst05Marh58/pub?output=csv';
-
         let products = [];
         let cart = [];
 
         const barcodeInput = document.getElementById('barcodeInput');
         const loadingMsg = document.getElementById('loadingMsg');
 
-        // جلب المنتجات من جوجل شيت عبر ملف الـ CSV
         function loadProductsFromSheet() {
+            const url = document.getElementById('sheetUrlInput').value.trim();
+            if (!url) {
+                alert('الرجاء إدخال رابط الشيت الصحيح');
+                return;
+            }
+
             loadingMsg.style.display = 'block';
-            Papa.parse(SHEET_CSV_URL, {
+            loadingMsg.innerText = 'جاري الاتصال بجوجل شيت...';
+            
+            // إضافة وقت عشوائي لمنع التخزين المؤقت (Cache) وجلب التحديثات الجديدة فوراً
+            const finalUrl = url.includes('&t=') ? url : url + '&t=' + new Date().getTime();
+
+            Papa.parse(finalUrl, {
                 download: true,
                 header: true,
                 complete: function(results) {
@@ -112,17 +120,17 @@
                     focusBarcode();
                 },
                 error: function(err) {
-                    loadingMsg.innerHTML = 'خطأ في الاتصال بجوجل شيت! تأكد من إعدادات النشر على الويب.';
+                    loadingMsg.style.display = 'block';
+                    loadingMsg.innerHTML = 'فشل التحميل! تأكد من أن الشيت منشور كـ CSV (نشر على الويب).';
                     loadingMsg.style.color = '#e74c3c';
                 }
             });
         }
 
-        // عرض المنتجات كأزرار شبكية سريعة
         function renderProducts() {
             const grid = document.getElementById('productGrid');
             if (products.length === 0) {
-                grid.innerHTML = '<p style="grid-column: 1/-1; text-align:center; color:#888;">لا توجد منتجات مسجلة في الشيت أو تأكد من أسماء الأعمدة (barcode, name, price).</p>';
+                grid.innerHTML = '<p style="grid-column: 1/-1; text-align:center; color:#888;">لا توجد منتجات مطابقة. تأكد من تطابق أسماء الأعمدة: barcode, name, price</p>';
                 return;
             }
             
@@ -135,7 +143,6 @@
             `).join('');
         }
 
-        // إضافة منتج للسلة بناءً على الباركود
         function addToCartByBarcode(code) {
             const product = products.find(p => p.barcode === code);
             if (!product) {
@@ -154,7 +161,6 @@
             focusBarcode();
         }
 
-        // رصد قراءة ماسح الباركود
         barcodeInput.addEventListener('keypress', function(e) {
             if (e.key === 'Enter') {
                 const code = barcodeInput.value.trim();
@@ -169,7 +175,6 @@
             barcodeInput.focus();
         }
 
-        // تعديل الكميات داخل السلة (+ أو -)
         function changeQty(code, delta) {
             const item = cart.find(i => i.barcode === code);
             if (item) {
@@ -183,21 +188,18 @@
             focusBarcode();
         }
 
-        // حذف صنف معين من السلة
         function removeFromCart(code) {
             cart = cart.filter(item => item.barcode !== code);
             renderCart();
             focusBarcode();
         }
 
-        // إفراغ السلة بالكامل
         function clearCart() {
             cart = [];
             renderCart();
             focusBarcode();
         }
 
-        // تحديث واجهة السلة وحساب الإجمالي الكلي
         function renderCart() {
             const container = document.getElementById('cartItems');
             const totalElement = document.getElementById('totalAmount');
@@ -231,20 +233,18 @@
             totalElement.innerText = total.toFixed(2);
         }
 
-        // عملية الدفع النهائي
         function checkout() {
             if (cart.length === 0) {
                 alert('السلة فارغة!');
                 return;
             }
-            
             alert('تم إتمام عملية البيع بنجاح!');
             cart = [];
             renderCart();
             focusBarcode();
         }
 
-        // تحميل المنتجات فور فتح الصفحة
+        // التحميل التلقائي عند فتح الصفحة
         window.onload = function() {
             loadProductsFromSheet();
         };
