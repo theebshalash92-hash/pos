@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>نظام نقاط بيع سريع - سحب تلقائي من جوجل شيت</title>
-    <!-- استدعاء مكتبة قراءة ملفات الـ CSV -->
+    <title>نظام نقاط البيع - سوبرماركت</title>
+    <!-- استدعاء مكتبة PapaParse -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: Tahoma, sans-serif; }
@@ -17,7 +17,7 @@
         .title-area h2 { color: #2c3e50; font-size: 20px; }
         .status-msg { font-size: 13px; color: #e67e22; font-weight: bold; }
 
-        /* حقل الباركود الرئيسي والمهيأ دائماً للكتابة */
+        /* حقل الباركود الرئيسي */
         .barcode-box { margin-bottom: 15px; }
         .barcode-box input { width: 100%; padding: 15px; font-size: 18px; border: 3px solid #27ae60; border-radius: 8px; outline: none; background: #fff; }
         
@@ -47,26 +47,23 @@
 </head>
 <body>
 
-    <!-- قسم المنتجات والباركود -->
     <div class="products-section">
         <div class="title-area">
-            <h2>🛒 نظام نقاط البيع (POS)</h2>
-            <div id="statusMsg" class="status-msg">جاري تحميل المنتجات...</div>
+            <h2>🛒 نقاط البيع - سوبرماركت</h2>
+            <div id="statusMsg" class="status-msg">جاري الاتصال بجوجل شيت...</div>
         </div>
         
-        <!-- حقل ماسح الباركود (نشط وجاهز دائماً) -->
         <div class="barcode-box">
-            <input type="text" id="barcodeInput" placeholder="امسح الباركود بالماسح الضوئي هنا..." autofocus autocomplete="off">
+            <input type="text" id="barcodeInput" placeholder="امسح الباركود هنا أو اكتب الكود واضغط Enter..." autofocus autocomplete="off">
         </div>
 
         <div class="grid-container">
             <div class="grid" id="productGrid">
-                <!-- ستظهر المنتجات هنا تلقائياً -->
+                <p style="grid-column: 1/-1; text-align:center; color:#888; margin-top:20px;">جاري تحميل المنتجات...</p>
             </div>
         </div>
     </div>
 
-    <!-- قسم الفاتورة والسلة -->
     <div class="cart-section">
         <div class="cart-title">فاتورة المبيعات</div>
         <div class="cart-items" id="cartItems">
@@ -80,8 +77,9 @@
     </div>
 
     <script>
-        // رابط الشيت الخاص بك
-        const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRdqgqC3ThQaqVmaShd-47oZ6jEUS1Pf-4lihZbJJh2HijUjkbUMQtxeF7FU8IlpwHG7mst05Marh58/pub?output=csv';
+        // رابط الشيت مع باراميتر لمنع الكاش (Cache)
+        const BASE_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRdqgqC3ThQaqVmaShd-47oZ6jEUS1Pf-4lihZbJJh2HijUjkbUMQtxeF7FU8IlpwHG7mst05Marh58/pub?output=csv';
+        const SHEET_CSV_URL = BASE_CSV_URL + '&cache_buster=' + new Date().getTime();
 
         let products = [];
         let cart = [];
@@ -89,40 +87,40 @@
         const barcodeInput = document.getElementById('barcodeInput');
         const statusMsg = document.getElementById('statusMsg');
 
-        // تحميل البيانات تلقائياً عند فتح الصفحة
-        function loadProductsAutomatically() {
-            const finalUrl = SHEET_CSV_URL + '&t=' + new Date().getTime();
-
-            Papa.parse(finalUrl, {
+        function loadProductsFromSheet() {
+            Papa.parse(SHEET_CSV_URL, {
                 download: true,
                 header: true,
                 complete: function(results) {
+                    console.log("Parsed Data:", results.data); // للتأكد من البيانات في المتصفح
+                    
                     products = results.data.filter(p => p.barcode && p.name).map(p => ({
                         barcode: String(p.barcode).trim(),
                         name: String(p.name).trim(),
                         price: parseFloat(p.price) || 0
                     }));
                     
-                    statusMsg.innerText = `تم تحميل ${products.length} منتج بنجاح`;
-                    statusMsg.style.color = '#27ae60';
-                    renderProducts();
+                    if (products.length > 0) {
+                        statusMsg.innerText = `تم تحميل ${products.length} منتج بنجاح`;
+                        statusMsg.style.color = '#27ae60';
+                        renderProducts();
+                    } else {
+                        statusMsg.innerText = 'الملف فارغ أو الأسماء غير مطابقة!';
+                        statusMsg.style.color = '#e74c3c';
+                        document.getElementById('productGrid').innerHTML = '<p style="grid-column: 1/-1; text-align:center; color:red;">تحذير: تم قراءة الشيت ولكنه لا يحتوي على منتجات أو أن أسماء الأعمدة ليست (barcode, name, price)</p>';
+                    }
                     focusBarcode();
                 },
                 error: function(err) {
-                    statusMsg.innerText = 'فشل الاتصال بالشيت!';
+                    statusMsg.innerText = 'خطأ في الاتصال!';
                     statusMsg.style.color = '#e74c3c';
+                    alert('فشل جلب البيانات من جوجل شيت. تأكد من نشر الملف كـ CSV.');
                 }
             });
         }
 
-        // عرض المنتجات كأزرار (بالإضافة للباركود)
         function renderProducts() {
             const grid = document.getElementById('productGrid');
-            if (products.length === 0) {
-                grid.innerHTML = '<p style="grid-column: 1/-1; text-align:center; color:#888;">لا توجد منتجات. تأكد من أعمدة الشيت (barcode, name, price)</p>';
-                return;
-            }
-            
             grid.innerHTML = products.map((p) => `
                 <div class="card" onclick="addToCartByBarcode('${p.barcode}')">
                     <h4>${p.name}</h4>
@@ -132,7 +130,6 @@
             `).join('');
         }
 
-        // إضافة منتج للسلة بناءً على الباركود
         function addToCartByBarcode(code) {
             const product = products.find(p => p.barcode === code);
             if (!product) {
@@ -151,18 +148,16 @@
             focusBarcode();
         }
 
-        // التقاط إدخال ماسح الباركود التلقائي (الذي ينتهي بـ Enter)
         barcodeInput.addEventListener('keypress', function(e) {
             if (e.key === 'Enter') {
                 const code = barcodeInput.value.trim();
                 if (code !== '') {
                     addToCartByBarcode(code);
-                    barcodeInput.value = ''; // تفريغ الحقل فوراً للباركود التالي
+                    barcodeInput.value = '';
                 }
             }
         });
 
-        // إبقاء المؤشر دائماً داخل حقل الباركود مهما حدث
         function focusBarcode() {
             barcodeInput.focus();
         }
@@ -170,7 +165,6 @@
             focusBarcode();
         });
 
-        // تعديل الكميات داخل السلة (+ أو -)
         function changeQty(code, delta) {
             const item = cart.find(i => i.barcode === code);
             if (item) {
@@ -184,21 +178,18 @@
             focusBarcode();
         }
 
-        // حذف منتج من السلة
         function removeFromCart(code) {
             cart = cart.filter(item => item.barcode !== code);
             renderCart();
             focusBarcode();
         }
 
-        // إفراغ السلة
         function clearCart() {
             cart = [];
             renderCart();
             focusBarcode();
         }
 
-        // تحديث واجهة الفاتورة والحساب
         function renderCart() {
             const container = document.getElementById('cartItems');
             const totalElement = document.getElementById('totalAmount');
@@ -232,7 +223,6 @@
             totalElement.innerText = total.toFixed(2);
         }
 
-        // إتمام الدفع وتصفير الفاتورة
         function checkout() {
             if (cart.length === 0) {
                 alert('السلة فارغة!');
@@ -244,9 +234,8 @@
             focusBarcode();
         }
 
-        // التشغيل التلقائي عند فتح الصفحة
         window.onload = function() {
-            loadProductsAutomatically();
+            loadProductsFromSheet();
         };
     </script>
 </body>
