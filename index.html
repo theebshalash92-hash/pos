@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>نظام نقاط بيع سوبرماركت - مرتبط بجوجل شيت</title>
-    <!-- استدعاء مكتبة PapaParse لقراءة ملفات CSV من جوجل شيت بسهولة -->
+    <!-- استدعاء مكتبة PapaParse لقراءة ملفات CSV من جوجل شيت -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: Tahoma, sans-serif; }
@@ -80,13 +80,13 @@
         <div class="totals">
             الإجمالي: <span id="totalAmount">0.00</span> د.أ
         </div>
-        <button class="btn-checkout" onclick="checkout()">إتمام الدفع (تخفيض المخزون/حفظ)</button>
+        <button class="btn-checkout" onclick="checkout()">إتمام الدفع</button>
         <button class="btn-clear" onclick="clearCart()">إفراغ السلة</button>
     </div>
 
     <script>
-        // ⚠️ ضع رابط الـ CSV المنسوخ من جوجل شيت هنا بين علامتي التنصيص:
-        const SHEET_CSV_URL = 'ضع_رابط_الـ_CSV_هنا';
+        // رابط جوجل شيت الخاص بك المدمج مباشرة
+        const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRdqgqC3ThQaqVmaShd-47oZ6jEUS1Pf-4lihZbJJh2HijUjkbUMQtxeF7FU8IlpwHG7mst05Marh58/pub?output=csv';
 
         let products = [];
         let cart = [];
@@ -96,18 +96,11 @@
 
         // جلب المنتجات من جوجل شيت عبر ملف الـ CSV
         function loadProductsFromSheet() {
-            if (SHEET_CSV_URL.includes('ضع_رابط')) {
-                loadingMsg.innerHTML = 'الرجاء وضع رابط جوجل شيت الصحيح داخل الكود البرمجي!';
-                loadingMsg.style.color = '#e74c3c';
-                return;
-            }
-
             loadingMsg.style.display = 'block';
             Papa.parse(SHEET_CSV_URL, {
                 download: true,
                 header: true,
                 complete: function(results) {
-                    // تنقية البيانات للتأكد من نظافة الحقول
                     products = results.data.filter(p => p.barcode && p.name).map(p => ({
                         barcode: String(p.barcode).trim(),
                         name: String(p.name).trim(),
@@ -119,21 +112,21 @@
                     focusBarcode();
                 },
                 error: function(err) {
-                    loadingMsg.innerHTML = 'خطأ في الاتصال بجوجل شيت! تأكد من إعدادات النشر.';
+                    loadingMsg.innerHTML = 'خطأ في الاتصال بجوجل شيت! تأكد من إعدادات النشر على الويب.';
                     loadingMsg.style.color = '#e74c3c';
                 }
             });
         }
 
-        // عرض المنتجات كأزرار شبكية سريعة للسوبرماركت
+        // عرض المنتجات كأزرار شبكية سريعة
         function renderProducts() {
             const grid = document.getElementById('productGrid');
             if (products.length === 0) {
-                grid.innerHTML = '<p style="grid-column: 1/-1; text-align:center; color:#888;">لا توجد منتجات مسجلة في الشيت.</p>';
+                grid.innerHTML = '<p style="grid-column: 1/-1; text-align:center; color:#888;">لا توجد منتجات مسجلة في الشيت أو تأكد من أسماء الأعمدة (barcode, name, price).</p>';
                 return;
             }
             
-            grid.innerHTML = products.map((p, index) => `
+            grid.innerHTML = products.map((p) => `
                 <div class="card" onclick="addToCartByBarcode('${p.barcode}')">
                     <h4>${p.name}</h4>
                     <p>${p.price.toFixed(2)} د.أ</p>
@@ -245,8 +238,7 @@
                 return;
             }
             
-            // هنا يمكنك لاحقاً ربط عملية الدفع بإرسال البيانات لجوجل شيت لحفظ الفواتير
-            alert('تم إتمام عملية البيع بنجاح وطباعة الفاتورة!');
+            alert('تم إتمام عملية البيع بنجاح!');
             cart = [];
             renderCart();
             focusBarcode();
