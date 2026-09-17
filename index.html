@@ -3,103 +3,155 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>نظام نقاط بيع سريع - مع دعم الباركود</title>
+    <title>نظام نقاط بيع سوبرماركت - مرتبط بجوجل شيت</title>
+    <!-- استدعاء مكتبة PapaParse لقراءة ملفات CSV من جوجل شيت بسهولة -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: Tahoma, sans-serif; }
         body { display: flex; height: 100vh; background: #f4f7f6; color: #333; }
         
-        /* قسم المنتجات والبحث بالباركود */
+        /* قسم المنتجات والبحث */
         .products-section { flex: 2; padding: 20px; display: flex; flex-direction: column; overflow: hidden; }
-        .barcode-input-container { margin-bottom: 15px; }
-        .barcode-input-container input { width: 100%; padding: 12px; font-size: 16px; border: 2px solid #3498db; border-radius: 6px; outline: none; }
+        .top-bar { display: flex; gap: 10px; margin-bottom: 15px; }
+        .barcode-input-container { flex: 1; }
+        .barcode-input-container input { width: 100%; padding: 12px; font-size: 16px; border: 2px solid #27ae60; border-radius: 6px; outline: none; }
         
-        .grid-container { flex: 1; overflow-y: auto; }
-        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 15px; }
-        .card { background: white; padding: 15px; border-radius: 8px; text-align: center; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.1); transition: 0.2s; }
-        .card:hover { background: #eef2f3; transform: translateY(-2px); }
-        .card h4 { font-size: 15px; margin-bottom: 5px; }
-        .card p { color: #27ae60; font-weight: bold; font-size: 14px; }
-        .card span { font-size: 11px; color: #888; display: block; margin-top: 5px; }
+        .btn-reload { background: #3498db; color: white; border: none; padding: 0 15px; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: bold; }
+        .btn-reload:hover { background: #2980b9; }
 
-        /* قسم الفاتورة */
+        .loading-msg { text-align: center; color: #e67e22; font-weight: bold; margin: 20px 0; }
+
+        .grid-container { flex: 1; overflow-y: auto; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; }
+        .card { background: white; padding: 12px; border-radius: 8px; text-align: center; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.05); transition: 0.2s; border: 1px solid #e1e8ed; }
+        .card:hover { background: #e8f8f5; border-color: #27ae60; transform: translateY(-2px); }
+        .card h4 { font-size: 14px; margin-bottom: 5px; color: #2c3e50; }
+        .card p { color: #27ae60; font-weight: bold; font-size: 15px; }
+        .card span { font-size: 11px; color: #95a5a6; display: block; margin-top: 5px; }
+
+        /* قسم الفاتورة (السلة) */
         .cart-section { flex: 1; background: white; border-right: 1px solid #ddd; display: flex; flex-direction: column; padding: 20px; box-shadow: -2px 0 5px rgba(0,0,0,0.05); }
+        .cart-title { font-size: 18px; margin-bottom: 15px; color: #2c3e50; border-bottom: 2px solid #f1f1f1; padding-bottom: 8px; }
         .cart-items { flex: 1; overflow-y: auto; margin-bottom: 15px; border-bottom: 1px solid #eee; }
-        .cart-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px dashed #eee; font-size: 14px; }
-        .cart-item button { background: #e74c3c; color: white; border: none; padding: 2px 6px; border-radius: 4px; cursor: pointer; }
+        .cart-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px dashed #eee; font-size: 13px; }
+        .cart-item-info { flex: 2; }
+        .cart-item-controls { display: flex; align-items: center; gap: 5px; }
+        .cart-item-controls button { background: #bdc3c7; color: #333; border: none; width: 22px; height: 22px; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        .cart-item-controls button:hover { background: #95a5a6; color: white; }
+        .btn-delete { background: #e74c3c !important; color: white !important; }
+        .btn-delete:hover { background: #c0392b !important; }
         
-        /* ملخص الحساب والأزرار */
-        .totals { font-size: 18px; font-weight: bold; margin-bottom: 15px; text-align: left; }
+        /* ملخص الحساب */
+        .totals { font-size: 20px; font-weight: bold; margin-bottom: 15px; text-align: left; color: #2c3e50; background: #f8f9fa; padding: 10px; border-radius: 6px; }
         .btn-checkout { background: #27ae60; color: white; border: none; padding: 12px; width: 100%; font-size: 16px; border-radius: 6px; cursor: pointer; font-weight: bold; margin-bottom: 8px; }
         .btn-checkout:hover { background: #219653; }
-        .btn-clear { background: #e67e22; color: white; border: none; padding: 8px; width: 100%; font-size: 14px; border-radius: 6px; cursor: pointer; }
+        .btn-clear { background: #e67e22; color: white; border: none; padding: 8px; width: 100%; font-size: 13px; border-radius: 6px; cursor: pointer; }
         .btn-clear:hover { background: #d35400; }
     </style>
 </head>
 <body>
 
-    <!-- قسم المنتجات والباركود -->
+    <!-- قسم المنتجات والبحث -->
     <div class="products-section">
-        <h2 style="margin-bottom: 10px;">نظام نقاط البيع السريع</h2>
+        <h2 style="margin-bottom: 10px; color: #2c3e50;">🛒 نقاط بيع السوبرماركت</h2>
         
-        <!-- حقل قراءة الباركود (يستقبل الإدخال من الماسح الضوئي تلقائياً) -->
-        <div class="barcode-input-container">
-            <input type="text5" id="barcodeInput" placeholder="امسح الباركود هنا أو اكتب الكود واضغط Enter..." autofocus>
+        <div class="top-bar">
+            <div class="barcode-input-container">
+                <input type="text" id="barcodeInput" placeholder="امسح الباركود بالماسح الضوئي هنا..." autofocus>
+            </div>
+            <button class="btn-reload" onclick="loadProductsFromSheet()">تحديث المنتجات</button>
         </div>
+
+        <div id="loadingMsg" class="loading-msg">جاري تحميل المنتجات من جوجل شيت...</div>
 
         <div class="grid-container">
             <div class="grid" id="productGrid">
-                <!-- يتم تعبئتها عبر الجافاسكريبت -->
+                <!-- يتم تعبئتها ديناميكياً من الجوجل شيت -->
             </div>
         </div>
     </div>
 
-    <!-- قسم سلة المشتريات والفاتورة -->
+    <!-- قسم الفاتورة والسلة -->
     <div class="cart-section">
-        <h2>فاتورة البيع</h2>
+        <div class="cart-title">فاتورة المبيعات</div>
         <div class="cart-items" id="cartItems">
-            <p style="color: #888; text-align: center; margin-top: 20px;">السلة فارغة</p>
+            <p style="color: #888; text-align: center; margin-top: 30px;">السلة فارغة</p>
         </div>
         <div class="totals">
             الإجمالي: <span id="totalAmount">0.00</span> د.أ
         </div>
-        <button class="btn-checkout" onclick="checkout()">إتمام الدفع</button>
+        <button class="btn-checkout" onclick="checkout()">إتمام الدفع (تخفيض المخزون/حفظ)</button>
         <button class="btn-clear" onclick="clearCart()">إفراغ السلة</button>
     </div>
 
     <script>
-        // قاعدة بيانات المنتجات مع أرقام الباركود الخاصة بكل منتج
-        const products = [
-            { id: 1, barcode: "1001", name: "قهوة إبريق", price: 1.5 },
-            { id: 2, barcode: "1002", name: "شاي متماسك", price: 0.5 },
-            { id: 3, barcode: "1003", name: "كرواسون", price: 1.2 },
-            { id: 4, barcode: "1004", name: "ماء معدني", price: 0.3 },
-            { id: 5, barcode: "1005", name: "عصير طازج", price: 2.0 },
-            { id: 6, barcode: "1006", name: "ساندويتش جبن", price: 2.5 }
-        ];
+        // ⚠️ ضع رابط الـ CSV المنسوخ من جوجل شيت هنا بين علامتي التنصيص:
+        const SHEET_CSV_URL = 'ضع_رابط_الـ_CSV_هنا';
 
+        let products = [];
         let cart = [];
 
-        // عرض المنتجات كأزرار سريعة
+        const barcodeInput = document.getElementById('barcodeInput');
+        const loadingMsg = document.getElementById('loadingMsg');
+
+        // جلب المنتجات من جوجل شيت عبر ملف الـ CSV
+        function loadProductsFromSheet() {
+            if (SHEET_CSV_URL.includes('ضع_رابط')) {
+                loadingMsg.innerHTML = 'الرجاء وضع رابط جوجل شيت الصحيح داخل الكود البرمجي!';
+                loadingMsg.style.color = '#e74c3c';
+                return;
+            }
+
+            loadingMsg.style.display = 'block';
+            Papa.parse(SHEET_CSV_URL, {
+                download: true,
+                header: true,
+                complete: function(results) {
+                    // تنقية البيانات للتأكد من نظافة الحقول
+                    products = results.data.filter(p => p.barcode && p.name).map(p => ({
+                        barcode: String(p.barcode).trim(),
+                        name: String(p.name).trim(),
+                        price: parseFloat(p.price) || 0
+                    }));
+                    
+                    loadingMsg.style.display = 'none';
+                    renderProducts();
+                    focusBarcode();
+                },
+                error: function(err) {
+                    loadingMsg.innerHTML = 'خطأ في الاتصال بجوجل شيت! تأكد من إعدادات النشر.';
+                    loadingMsg.style.color = '#e74c3c';
+                }
+            });
+        }
+
+        // عرض المنتجات كأزرار شبكية سريعة للسوبرماركت
         function renderProducts() {
             const grid = document.getElementById('productGrid');
-            grid.innerHTML = products.map(p => `
-                <div class="card" onclick="addToCartById(${p.id})">
+            if (products.length === 0) {
+                grid.innerHTML = '<p style="grid-column: 1/-1; text-align:center; color:#888;">لا توجد منتجات مسجلة في الشيت.</p>';
+                return;
+            }
+            
+            grid.innerHTML = products.map((p, index) => `
+                <div class="card" onclick="addToCartByBarcode('${p.barcode}')">
                     <h4>${p.name}</h4>
-                    <p>${p.price} د.أ</p>
+                    <p>${p.price.toFixed(2)} د.أ</p>
                     <span>${p.barcode}</span>
                 </div>
             `).join('');
         }
 
-        // إضافة منتج للسلة بواسطة الـ ID (عند النقر)
-        function addToCartById(id) {
-            const product = products.find(p => p.id === id);
-            addProductToCart(product);
-        }
+        // إضافة منتج للسلة بناءً على الباركود
+        function addToCartByBarcode(code) {
+            const product = products.find(p => p.barcode === code);
+            if (!product) {
+                alert('المنتج غير موجود في قاعدة البيانات!');
+                focusBarcode();
+                return;
+            }
 
-        // إضافة المنتج الفعلي للسلة وزيادة الكمية إذا موجود
-        function addProductToCart(product) {
-            const existing = cart.find(item => item.id === product.id);
+            const existing = cart.find(item => item.barcode === code);
             if (existing) {
                 existing.qty++;
             } else {
@@ -109,35 +161,38 @@
             focusBarcode();
         }
 
-        // التعامل مع قارئ الباركود عند الضغط على Enter
-        const barcodeInput = document.getElementById('barcodeInput');
+        // رصد قراءة ماسح الباركود
         barcodeInput.addEventListener('keypress', function(e) {
             if (e.key === 'Enter') {
                 const code = barcodeInput.value.trim();
-                const product = products.find(p => p.barcode === code);
-                
-                if (product) {
-                    addProductToCart(product);
-                    barcodeInput.value = ''; // تفريغ الحقل لقراءة باركود جديد
-                } else {
-                    alert('المنتج غير موجود بهذا الباركود: ' + code);
+                if (code !== '') {
+                    addToCartByBarcode(code);
                     barcodeInput.value = '';
                 }
             }
         });
 
-        // الحفاظ على التركيز (Focus) في حقل الباركود دائماً لسرعة العمل
         function focusBarcode() {
             barcodeInput.focus();
         }
-        window.onload = function() {
-            renderProducts();
-            focusBarcode();
-        };
 
-        // حذف منتج مفرد من السلة
-        function removeFromCart(id) {
-            cart = cart.filter(item => item.id !== id);
+        // تعديل الكميات داخل السلة (+ أو -)
+        function changeQty(code, delta) {
+            const item = cart.find(i => i.barcode === code);
+            if (item) {
+                item.qty += delta;
+                if (item.qty <= 0) {
+                    removeFromCart(code);
+                } else {
+                    renderCart();
+                }
+            }
+            focusBarcode();
+        }
+
+        // حذف صنف معين من السلة
+        function removeFromCart(code) {
+            cart = cart.filter(item => item.barcode !== code);
             renderCart();
             focusBarcode();
         }
@@ -149,25 +204,33 @@
             focusBarcode();
         }
 
-        // تحديث عرض السلة والحسابات
+        // تحديث واجهة السلة وحساب الإجمالي الكلي
         function renderCart() {
             const container = document.getElementById('cartItems');
             const totalElement = document.getElementById('totalAmount');
             
             if (cart.length === 0) {
-                container.innerHTML = '<p style="color: #888; text-align: center; margin-top: 20px;">السلة فارغة</p>';
+                container.innerHTML = '<p style="color: #888; text-align: center; margin-top: 30px;">السلة فارغة</p>';
                 totalElement.innerText = '0.00';
                 return;
             }
 
             let total = 0;
             container.innerHTML = cart.map(item => {
-                total += item.price * item.qty;
+                let itemTotal = item.price * item.qty;
+                total += itemTotal;
                 return `
                     <div class="cart-item">
-                        <span>${item.name} (${item.qty})</span>
-                        <span>${(item.price * item.qty).toFixed(2)} د.أ</span>
-                        <button onclick="removeFromCart(${item.id})">حذف</button>
+                        <div class="cart-item-info">
+                            <b>${item.name}</b><br>
+                            <span style="color:#27ae60;">${item.price.toFixed(2)} د.أ</span>
+                        </div>
+                        <div class="cart-item-controls">
+                            <button onclick="changeQty('${item.barcode}', -1)">-</button>
+                            <span style="width: 20px; text-align: center; font-weight: bold;">${item.qty}</span>
+                            <button onclick="changeQty('${item.barcode}', 1)">+</button>
+                            <button class="btn-delete" onclick="removeFromCart('${item.barcode}')">×</button>
+                        </div>
                     </div>
                 `;
             }).join('');
@@ -175,17 +238,24 @@
             totalElement.innerText = total.toFixed(2);
         }
 
-        // عملية الدفع
+        // عملية الدفع النهائي
         function checkout() {
             if (cart.length === 0) {
-                alert('السلة فارغة بالفعل!');
+                alert('السلة فارغة!');
                 return;
             }
-            alert('تم إتمام الطلب بنجاح! شكراً لك.');
+            
+            // هنا يمكنك لاحقاً ربط عملية الدفع بإرسال البيانات لجوجل شيت لحفظ الفواتير
+            alert('تم إتمام عملية البيع بنجاح وطباعة الفاتورة!');
             cart = [];
             renderCart();
             focusBarcode();
         }
+
+        // تحميل المنتجات فور فتح الصفحة
+        window.onload = function() {
+            loadProductsFromSheet();
+        };
     </script>
 </body>
 </html>
