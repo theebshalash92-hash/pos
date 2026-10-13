@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>نظام نقاط البيع - سوبرماركت مع أزرار اختصارات المواد</title>
+    <title>نظام نقاط البيع - سوبرماركت</title>
     <!-- استدعاء مكتبة PapaParse لقراءة ملفات CSV -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
     <style>
@@ -104,7 +104,7 @@
             الإجمالي: <span id="totalAmount">0.00</span> د.أ
         </div>
         <button class="btn-checkout" onclick="checkout()">إتمام الدفع</button>
-        <button class="btn-reports" onclick="openReportsModal()">📊 تقارير المبيعات</button>
+        <button class="btn-reports" onclick="openReportsModal()">📋 تقرير المبيعات الشامل</button>
         <button class="btn-clear" onclick="clearCart()">إفراغ السلة</button>
     </div>
 
@@ -133,7 +133,7 @@
             </div>
             <div class="modal-footer">
                 <b id="reportTotalSum" style="font-size: 16px; color: #27ae60;">إجمالي المبيعات: 0.00 د.أ</b>
-                <button class="btn-clear-report" onclick="clearReportsData()">حذف سجل التقارير</button>
+                <button class="btn-clear-report" onclick="clearReportsData()">حذف سجل التقارير (محمي)</button>
             </div>
         </div>
     </div>
@@ -351,9 +351,16 @@
         }
 
         function clearReportsData() {
-            if (confirm('هل أنت متأكد من حذف سجل تقارير المبيعات بالكامل؟')) {
-                localStorage.removeItem('pos_sales_reports');
-                openReportsModal();
+            let password = prompt('الرجاء إدخال كلمة المرور لحذف سجل التقارير:');
+            // كلمة المرور الافتراضية هنا هي 1234 (يمكنك تغييرها لأي رقم تريده)
+            if (password === '1992') {
+                if (confirm('هل أنت متأكد تماماً من حذف سجل تقارير المبيعات بالكامل؟')) {
+                    localStorage.removeItem('pos_sales_reports');
+                    openReportsModal();
+                    alert('🗑️ تم حذف سجل التقارير بنجاح.');
+                }
+            } else if (password !== null) {
+                alert('❌ كلمة المرور غير صحيحة! لا يمكن حذف السجل.');
             }
         }
 
