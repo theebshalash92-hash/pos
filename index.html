@@ -66,6 +66,25 @@
         th { background: #f8f9fa; color: #2c3e50; position: sticky; top: 0; }
         .modal-footer { margin-top: 15px; display: flex; justify-content: space-between; align-items: center; }
         .btn-clear-report { background: #c0392b; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; }
+
+        /* تصميم الفاتورة المخصصة للطباعة الحرارية */
+        #invoiceModal .modal-content { width: 380px; }
+        .receipt-box { font-family: 'Courier New', Courier, monospace; background: #fff; padding: 15px; color: #000; }
+        .receipt-header { text-align: center; border-bottom: 1px dashed #000; padding-bottom: 10px; margin-bottom: 10px; }
+        .receipt-header h2 { font-size: 18px; margin-bottom: 5px; }
+        .receipt-header p { font-size: 12px; color: #333; }
+        .receipt-details { font-size: 12px; margin-bottom: 10px; border-bottom: 1px dashed #000; padding-bottom: 8px; }
+        .receipt-items-table { width: 100%; font-size: 12px; border-collapse: collapse; margin-bottom: 10px; }
+        .receipt-items-table th, .receipt-items-table td { border-bottom: 1px dotted #ccc; padding: 5px 2px; text-align: right; }
+        .receipt-footer { text-align: center; font-size: 12px; border-top: 1px dashed #000; padding-top: 10px; margin-top: 10px; }
+
+        /* إعدادات خاصة عند الطباعة الفعلية لإخفاء باقي عناصر الشاشة وطباعة الفاتورة فقط */
+        @media print {
+            body * { visibility: hidden; }
+            #receiptPrintArea, #receiptPrintArea * { visibility: visible; }
+            #receiptPrintArea { position: absolute; left: 0; top: 0; width: 100%; }
+            .no-print { display: none !important; }
+        }
     </style>
 </head>
 <body>
@@ -103,9 +122,55 @@
         <div class="totals">
             الإجمالي: <span id="totalAmount">0.00</span> د.أ
         </div>
-        <button class="btn-checkout" onclick="checkout()">إتمام الدفع</button>
+        <button class="btn-checkout" onclick="checkout()">إتمام الدفع وطباعة الفاتورة</button>
         <button class="btn-reports" onclick="openReportsModal()">📋 تقرير المبيعات الشامل</button>
         <button class="btn-clear" onclick="clearCart()">إفراغ السلة</button>
+    </div>
+
+    <!-- نافذة معاينة الفاتورة قبل الطباعة -->
+    <div id="invoiceModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header no-print">
+                <h3>🖨️ معاينة الفاتورة</h3>
+                <button class="close-btn" onclick="closeInvoiceModal()">✕ إغلاق</button>
+            </div>
+            
+            <div id="receiptPrintArea" class="receipt-box">
+                <div class="receipt-header">
+                    <h2>سوبرماركت نسمة الجبل</h2>
+                    <p>نظام نقاط البيع السريع</p>
+                    <p id="receiptDateTime"></p>
+                </div>
+                <div class="receipt-details">
+                    <p>رقم الفاتورة: <span id="receiptInvoiceNo"></span></p>
+                </div>
+                <table class="receipt-items-table">
+                    <thead>
+                        <tr>
+                            <th>الصنف</th>
+                            <th>الكمية</th>
+                            <th>السعر</th>
+                            <th>المجموع</th>
+                        </tr>
+                    </thead>
+                    <tbody id="receiptTableBody">
+                        <!-- الأصناف تضاف هنا -->
+                    </tbody>
+                </table>
+                <div style="text-align: left; font-size: 14px; font-weight: bold; margin-top: 10px; border-top: 1px dashed #000; padding-top: 5px;">
+                    الإجمالي النهائي: <span id="receiptGrandTotal">0.00</span> د.أ
+                </div>
+                <div class="receipt-footer">
+                    <p>شكراً لزيارتكم!</p>
+                    <p>برمجة: ذيب الشلش (0788984458)</p>
+                </div>
+            </div>
+
+            <div class="modal-footer no-print" style="margin-top: 15px; display: flex; gap: 10px;">
+                <button onclick="window.print()" style="flex: 1; background: #27ae60; color: white; border: none; padding: 10px; border-radius: 4px; font-weight: bold; cursor: pointer;">🖨️ طباعة الفاتورة</button>
+                <button onclick="closeInvoiceModal()" style="flex: 1; background: #7f8c8d; color: white; border: none; padding: 10px; border-radius: 4px; font-weight: bold; cursor: pointer;">إغلاق والعودة</button>
+            </div>
+        </div>
     </div>
 
     <!-- نافذة تقارير المبيعات المنبثقة -->
@@ -286,7 +351,7 @@
             totalElement.innerText = total.toFixed(2);
         }
 
-        // إتمام الدفع وحفظ المبيعات في التقرير
+        // إتمام الدفع، حفظ المبيعات، وعرض الفاتورة للطباعة
         function checkout() {
             if (cart.length === 0) {
                 alert('السلة فارغة!');
@@ -295,8 +360,11 @@
 
             let salesRecords = JSON.parse(localStorage.getItem('pos_sales_reports')) || [];
             let now = new Date().toLocaleString('ar-JO');
+            let invoiceNo = 'INV-' + Math.floor(100000 + Math.random() * 900000);
 
-            cart.forEach(item => {
+            let currentCartSnapshot = [...cart];
+
+            currentCartSnapshot.forEach(item => {
                 salesRecords.push({
                     date: now,
                     name: item.name,
@@ -308,9 +376,40 @@
 
             localStorage.setItem('pos_sales_reports', JSON.stringify(salesRecords));
             
-            alert('✅ تم إتمام عملية البيع وحفظ التقرير بنجاح!');
+            // تجهيز عرض نافذة الفاتورة
+            showReceiptModal(currentCartSnapshot, now, invoiceNo);
+
+            // إفراغ السلة الحالية للبيع التالي
             cart = [];
             renderCart();
+        }
+
+        function showReceiptModal(items, dateTime, invoiceNo) {
+            document.getElementById('receiptDateTime').innerText = dateTime;
+            document.getElementById('receiptInvoiceNo').innerText = invoiceNo;
+            
+            const tbody = document.getElementById('receiptTableBody');
+            let grandTotal = 0;
+
+            tbody.innerHTML = items.map(item => {
+                let itemTotal = item.price * item.qty;
+                grandTotal += itemTotal;
+                return `
+                    <tr>
+                        <td>${item.name}</td>
+                        <td>${item.qty}</td>
+                        <td>${item.price.toFixed(2)}</td>
+                        <td>${itemTotal.toFixed(2)}</td>
+                    </tr>
+                `;
+            }).join('');
+
+            document.getElementById('receiptGrandTotal').innerText = grandTotal.toFixed(2);
+            document.getElementById('invoiceModal').style.display = 'flex';
+        }
+
+        function closeInvoiceModal() {
+            document.getElementById('invoiceModal').style.display = 'none';
             focusBarcode();
         }
 
@@ -352,8 +451,7 @@
 
         function clearReportsData() {
             let password = prompt('الرجاء إدخال كلمة المرور لحذف سجل التقارير:');
-            // كلمة المرور الافتراضية هنا هي 1234 (يمكنك تغييرها لأي رقم تريده)
-            if (password === '1992') {
+            if (password === '1234') {
                 if (confirm('هل أنت متأكد تماماً من حذف سجل تقارير المبيعات بالكامل؟')) {
                     localStorage.removeItem('pos_sales_reports');
                     openReportsModal();
