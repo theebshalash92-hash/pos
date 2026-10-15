@@ -56,16 +56,19 @@
 
         /* نافذة التقارير المنبثقة (Modal) */
         .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; }
-        .modal-content { background: #fff; width: 750px; max-height: 85vh; border-radius: 8px; display: flex; flex-direction: column; padding: 20px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
+        .modal-content { background: #fff; width: 850px; max-height: 85vh; border-radius: 8px; display: flex; flex-direction: column; padding: 20px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
         .modal-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #ddd; padding-bottom: 10px; margin-bottom: 15px; }
         .modal-header h3 { color: #2c3e50; }
         .close-btn { background: #e74c3c; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-weight: bold; }
-        .report-table-container { flex: 1; overflow-y: auto; max-height: 50vh; border: 1px solid #ddd; }
-        table { width: 100%; border-collapse: collapse; text-align: right; font-size: 14px; }
-        th, td { padding: 10px; border-bottom: 1px solid #ddd; }
+        
+        .report-section-title { font-size: 16px; font-weight: bold; color: #2c3e50; margin: 10px 0 5px 0; }
+        .report-table-container { flex: 1; overflow-y: auto; max-height: 35vh; border: 1px solid #ddd; margin-bottom: 10px; }
+        table { width: 100%; border-collapse: collapse; text-align: right; font-size: 13px; }
+        th, td { padding: 8px 10px; border-bottom: 1px solid #ddd; }
         th { background: #f8f9fa; color: #2c3e50; position: sticky; top: 0; }
-        .modal-footer { margin-top: 15px; display: flex; justify-content: space-between; align-items: center; }
+        .modal-footer { margin-top: 10px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #ddd; padding-top: 10px; }
         .btn-clear-report { background: #c0392b; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; }
+        .btn-print-report { background: #2980b9; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; font-weight: bold; }
 
         /* تصميم الفاتورة المخصصة للطباعة الحرارية */
         #invoiceModal .modal-content { width: 380px; }
@@ -78,12 +81,20 @@
         .receipt-items-table th, .receipt-items-table td { border-bottom: 1px dotted #ccc; padding: 5px 2px; text-align: right; }
         .receipt-footer { text-align: center; font-size: 12px; border-top: 1px dashed #000; padding-top: 10px; margin-top: 10px; }
 
-        /* إعدادات خاصة عند الطباعة الفعلية لإخفاء باقي عناصر الشاشة وطباعة الفاتورة فقط */
+        /* إعدادات طباعة الفاتورة */
         @media print {
             body * { visibility: hidden; }
             #receiptPrintArea, #receiptPrintArea * { visibility: visible; }
             #receiptPrintArea { position: absolute; left: 0; top: 0; width: 100%; }
             .no-print { display: none !important; }
+        }
+
+        /* إعدادات طباعة التقرير الشامل */
+        @media print {
+            body.printing-report * { visibility: hidden; }
+            body.printing-report #reportsModal, body.printing-report #reportsModal * { visibility: visible; }
+            body.printing-report #reportsModal { position: absolute; left: 0; top: 0; width: 100%; height: auto; background: white; }
+            body.printing-report .no-print { display: none !important; }
         }
     </style>
 </head>
@@ -129,7 +140,7 @@
 
     <!-- نافذة معاينة الفاتورة قبل الطباعة -->
     <div id="invoiceModal" class="modal">
-        <div class="modal-content">
+        <div class="modal-content" style="width: 380px;">
             <div class="modal-header no-print">
                 <h3>🖨️ معاينة الفاتورة</h3>
                 <button class="close-btn" onclick="closeInvoiceModal()">✕ إغلاق</button>
@@ -137,7 +148,7 @@
             
             <div id="receiptPrintArea" class="receipt-box">
                 <div class="receipt-header">
-                    <h2>Jj`s Supermarket</h2>
+                    <h2>سوبرماركت نسمة الجبل</h2>
                     <p>نظام نقاط البيع السريع</p>
                     <p id="receiptDateTime"></p>
                 </div>
@@ -162,7 +173,7 @@
                 </div>
                 <div class="receipt-footer">
                     <p>شكراً لزيارتكم!</p>
-                    <p>Jj`s Supermarket  (0793502626)</p>
+                    <p>برمجة: ذيب الشلش (0788984458)</p>
                 </div>
             </div>
 
@@ -173,13 +184,33 @@
         </div>
     </div>
 
-    <!-- نافذة تقارير المبيعات المنبثقة -->
+    <!-- نافذة تقارير المبيعات الشاملة -->
     <div id="reportsModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h3>📊 تقرير مبيعات المنتجات</h3>
-                <button class="close-btn" onclick="closeReportsModal()">✕ إغلاق</button>
+                <h3>📊 تقرير مبيعات المنتجات الشامل</h3>
+                <button class="close-btn no-print" onclick="closeReportsModal()">✕ إغلاق</button>
             </div>
+
+            <!-- جدول ملخص مبيعات الأصناف (مجموع الكميات لكل صنف) -->
+            <div class="report-section-title">📦 ملخص المبيعات حسب الصنف</div>
+            <div class="report-table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>اسم الصنف</th>
+                            <th>إجمالي الكمية المباعة</th>
+                            <th>إجمالي المبيعات (د.أ)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="summaryTableBody">
+                        <!-- تظهر البيانات المجمعة هنا -->
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- جدول الحركات التفصيلية -->
+            <div class="report-section-title">🕒 سجل الحركات التفصيلي</div>
             <div class="report-table-container">
                 <table>
                     <thead>
@@ -192,13 +223,17 @@
                         </tr>
                     </thead>
                     <tbody id="reportTableBody">
-                        <!-- تظهر البيانات هنا -->
+                        <!-- تظهر الحركات التفصيلية هنا -->
                     </tbody>
                 </table>
             </div>
+
             <div class="modal-footer">
                 <b id="reportTotalSum" style="font-size: 16px; color: #27ae60;">إجمالي المبيعات: 0.00 د.أ</b>
-                <button class="btn-clear-report" onclick="clearReportsData()">حذف سجل التقارير (محمي)</button>
+                <div style="display: flex; gap: 10px;">
+                    <button class="btn-print-report no-print" onclick="printReport()">🖨️ طباعة التقرير</button>
+                    <button class="btn-clear-report no-print" onclick="clearReportsData()">حذف سجل التقارير (محمي)</button>
+                </div>
             </div>
         </div>
     </div>
@@ -376,96 +411,8 @@
 
             localStorage.setItem('pos_sales_reports', JSON.stringify(salesRecords));
             
-            // تجهيز عرض نافذة الفاتورة
             showReceiptModal(currentCartSnapshot, now, invoiceNo);
 
-            // إفراغ السلة الحالية للبيع التالي
             cart = [];
             renderCart();
         }
-
-        function showReceiptModal(items, dateTime, invoiceNo) {
-            document.getElementById('receiptDateTime').innerText = dateTime;
-            document.getElementById('receiptInvoiceNo').innerText = invoiceNo;
-            
-            const tbody = document.getElementById('receiptTableBody');
-            let grandTotal = 0;
-
-            tbody.innerHTML = items.map(item => {
-                let itemTotal = item.price * item.qty;
-                grandTotal += itemTotal;
-                return `
-                    <tr>
-                        <td>${item.name}</td>
-                        <td>${item.qty}</td>
-                        <td>${item.price.toFixed(2)}</td>
-                        <td>${itemTotal.toFixed(2)}</td>
-                    </tr>
-                `;
-            }).join('');
-
-            document.getElementById('receiptGrandTotal').innerText = grandTotal.toFixed(2);
-            document.getElementById('invoiceModal').style.display = 'flex';
-        }
-
-        function closeInvoiceModal() {
-            document.getElementById('invoiceModal').style.display = 'none';
-            focusBarcode();
-        }
-
-        // وظائف نافذة التقارير
-        function openReportsModal() {
-            const modal = document.getElementById('reportsModal');
-            const tbody = document.getElementById('reportTableBody');
-            const totalSumEl = document.getElementById('reportTotalSum');
-
-            let salesRecords = JSON.parse(localStorage.getItem('pos_sales_reports')) || [];
-
-            if (salesRecords.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#888; padding:20px;">لا توجد مبيعات مسجلة حتى الآن.</td></tr>';
-                totalSumEl.innerText = 'إجمالي المبيعات: 0.00 د.أ';
-            } else {
-                let grandTotal = 0;
-                tbody.innerHTML = salesRecords.map(r => {
-                    grandTotal += r.total;
-                    return `
-                        <tr>
-                            <td>${r.date}</td>
-                            <td><b>${r.name}</b></td>
-                            <td>${r.qty}</td>
-                            <td>${r.price.toFixed(2)} د.أ</td>
-                            <td style="color: #27ae60; font-weight: bold;">${r.total.toFixed(2)} د.أ</td>
-                        </tr>
-                    `;
-                }).join('');
-                totalSumEl.innerText = `إجمالي المبيعات: ${grandTotal.toFixed(2)} د.أ`;
-            }
-
-            modal.style.display = 'flex';
-        }
-
-        function closeReportsModal() {
-            document.getElementById('reportsModal').style.display = 'none';
-            focusBarcode();
-        }
-
-        function clearReportsData() {
-            let password = prompt('الرجاء إدخال كلمة المرور لحذف سجل التقارير:');
-            if (password === '1234') {
-                if (confirm('هل أنت متأكد تماماً من حذف سجل تقارير المبيعات بالكامل؟')) {
-                    localStorage.removeItem('pos_sales_reports');
-                    openReportsModal();
-                    alert('🗑️ تم حذف سجل التقارير بنجاح.');
-                }
-            } else if (password !== null) {
-                alert('❌ كلمة المرور غير صحيحة! لا يمكن حذف السجل.');
-            }
-        }
-
-        // التشغيل التلقائي عند فتح الصفحة
-        window.onload = function() {
-            loadProductsFromSheet();
-        };
-    </script>
-</body>
-</html>
