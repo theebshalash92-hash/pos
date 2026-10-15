@@ -8,25 +8,27 @@
     <script src="https://unpkg.com/html5-qrcode"></script>
     <style>
         body { font-family: Tahoma, sans-serif; background: #f4f4f9; text-align: center; margin: 0; padding: 20px; }
-        h1 { color: #333; font-size: 24px; }
-        #reader { width: 100%; max-width: 400px; margin: auto; border-radius: 10px; overflow: hidden; }
-        .result-card { background: #fff; max-width: 400px; margin: 20px auto; padding: 20px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); display: none; }
-        .result-card img { width: 150px; height: 150px; object-fit: contain; border-radius: 8px; margin-bottom: 10px; }
-        .product-name { font-size: 20px; font-weight: bold; color: #222; margin-bottom: 10px; }
-        .product-price { font-size: 26px; color: #e74c3c; font-weight: bold; }
-        .error-msg { color: #e74c3c; font-weight: bold; margin-top: 15px; display: none; }
+        h1 { color: #333; font-size: 24px; margin-bottom: 5px; }
+        p { color: #666; }
+        #reader { width: 100%; max-width: 400px; margin: 20px auto; border-radius: 12px; overflow: hidden; background: #fff; padding: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .result-card { background: #fff; max-width: 400px; margin: 20px auto; padding: 20px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); display: none; text-align: center; }
+        .result-card img { width: 160px; height: 160px; object-fit: contain; border-radius: 8px; margin-bottom: 15px; background: #fff; border: 1px solid #eee; }
+        .product-name { font-size: 22px; font-weight: bold; color: #222; margin-bottom: 12px; }
+        .product-price { font-size: 28px; color: #e74c3c; font-weight: bold; }
+        .error-msg { color: #e74c3c; font-weight: bold; margin-top: 15px; display: none; font-size: 18px; background: #ffe6e6; padding: 10px; border-radius: 8px; max-width: 400px; margin-left: auto; margin-right: auto; }
+        .loading-msg { color: #007bff; font-weight: bold; margin-top: 15px; display: none; font-size: 18px; }
     </style>
 </head>
 <body>
 
     <h1>🛒 فحص أسعار المنتجات</h1>
-    <p>وجه كاميرا الهاتف نحو باركود المنتج لمعرفة السعر</p>
+    <p>وجه كاميرا الهاتف نحو باركود المنتج لعرض السعر</p>
 
     <!-- مكان عرض الكاميرا -->
     <div id="reader"></div>
 
-    <p id="loading" style="display:none; color: #007bff;">جاري البحث عن المنتج...</p>
-    <p id="error" class="error-msg">المنتج غير متوفر في النظام!</p>
+    <div id="loading" class="loading-msg">جاري البحث عن المنتج...</div>
+    <div id="error" class="error-msg">المنتج غير متوفر في النظام!</div>
 
     <!-- كارت عرض النتيجة -->
     <div id="resultCard" class="result-card">
@@ -36,7 +38,8 @@
     </div>
 
     <script>
-        const SCRIPT_URL = 'YOUR_GOOGLE_APPS_SCRIPT_URL_HERE'; // ضع رابط الـ Web App هنا
+        // رابط الـ Google Apps Script الخاص بك المربوط بجوجل شيت
+        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwTb0M9RtjDZadW_Vwx3T_f7RPWY_0ZVoJbWUbeRt-3BMV2BzZXPUPn3VxhSeINle8clg/exec';
 
         let lastScannedCode = "";
 
@@ -53,17 +56,17 @@
             document.getElementById('resultCard').style.display = 'none';
             document.getElementById('error').style.display = 'none';
 
-            fetch(`${SCRIPT_URL}?barcode=${barcode}`)
+            fetch(`${SCRIPT_URL}?barcode=${encodeURIComponent(barcode)}`)
                 .then(response => response.json())
                 .then(data => {
                     document.getElementById('loading').style.display = 'none';
                     if (data.found) {
                         document.getElementById('pName').innerText = data.name;
-                        document.getElementById('pPrice').innerText = data.price;
-                        document.getElementById('pImg').src = data.image || 'https://via.placeholder.com/150';
+                        document.getElementById('pPrice').innerText = data.price + " د.أ";
+                        document.getElementById('pImg').src = data.image && data.image.trim() !== "" ? data.image : 'https://via.placeholder.com/150?text=No+Image';
                         document.getElementById('resultCard').style.display = 'block';
                         
-                        // إعادة السماح بقراءة نفس الباركود بعد 4 ثواني
+                        // إعادة السماح بقراءة نفس الباركود بعد 4 ثوانٍ
                         setTimeout(() => { lastScannedCode = ""; }, 4000);
                     } else {
                         document.getElementById('error').style.display = 'block';
@@ -79,7 +82,11 @@
 
         // تشغيل الكاميرا الخلفية تلقائياً
         let html5QrcodeScanner = new Html5QrcodeScanner(
-            "reader", { fps: 10, qrbox: { width: 250, height: 150 } }, false);
+            "reader", { 
+                fps: 10, 
+                qrbox: { width: 260, height: 140 },
+                aspectRatio: 1.0
+            }, false);
         html5QrcodeScanner.render(onScanSuccess);
     </script>
 </body>
